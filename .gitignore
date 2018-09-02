@@ -1,5 +1,7 @@
 venv
 data
+.idea
 
 .DS_Store
 
+script.py
