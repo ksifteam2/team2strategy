@@ -3,15 +3,13 @@ Date    : 2018. 9. 2
 Author  : Jiwoo Park
 Desc    : Filtering firms by financial factor
 """
-from datetime import datetime
+from datetime import datetime, timedelta
 from ksif import *
 import pandas as pd
 from collections import OrderedDict
 
 pf = Portfolio()
 
-querys = ['trading_volume_ratio > 0.02', 'market_cap > 100000']
-query = " & ".join(querys)
 SECTOR = 'krx_sector'
 CODE = 'code'
 E_P = 'e_p'
@@ -22,16 +20,17 @@ MIN_TRADING_VAL_RATIO = 0.01
 QUERY = "(e_p > e_p_crt) & (mktcap > {}) & (trading_volume_ratio > {})".format(MIN_MKTCAP, MIN_TRADING_VAL_RATIO)
 USECOLS = [CODE, SECTOR, E_P, 'e_p_crt']
 
+HISTORIC_PERIOD = timedelta(90)
+
 def _apply_financial_criteria(period, criteria, firms):
-    sampled_df = pf.loc[(pf.code.isin(firms)) & (pf.date > period[0]) & (pf.date < period[1])]
+    sampled_df = pf.loc[(pf.code.isin(firms)) & (pf.date > period[0] - HISTORIC_PERIOD) & (pf.date < period[1] - HISTORIC_PERIOD)]
     sampled_df = pd.merge(sampled_df, criteria.to_frame(), left_on=SECTOR, right_index=True, suffixes=('', '_crt'))
-    print(sampled_df[E_P] > sampled_df['e_p_crt'])
     df_after_query = sampled_df.query(QUERY)
     return df_after_query[USECOLS]
 
 
 def _get_financial_criteria(period, factor=E_P):
-    sampled_df = pf.loc[(pf.date > period[0]) & (pf.date < period[1])]
+    sampled_df = pf.loc[(pf.date > period[0] - HISTORIC_PERIOD) & (pf.date < period[1] - HISTORIC_PERIOD)]
     return sampled_df.groupby(SECTOR)[factor].quantile(0.5)
 
 
