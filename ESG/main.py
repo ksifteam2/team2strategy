@@ -16,17 +16,13 @@
 # 5. Add Momentum
 
 from datetime import datetime
-import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
-import itertools
 import utils
 from collections import OrderedDict
 
 esg_weight = {'S': 150, 'A+': 120, 'A': 100, 'B': 90, 'B+': 95, 'C': 80, 'D': 70, 'B이하': 80}
 year_weight = {2011: 1, 2012: 2, 2013: 3, 2014: 4, 2015: 5, 2016: 6, 2017: 7}
 sector_weight = {'경기소비재': 3, '소재': 3, '산업재': 3, 'IT': 3, '금융': 3, '의료': 3, '유틸리티': 4, '통신서비스': 4, '필수소비재': 3, '에너지': 3}
-# sector_weight
 ESG_SCORE = '../data/ESG_Grade.csv'
 df = pd.read_csv(ESG_SCORE)
 
@@ -34,15 +30,13 @@ sector_code = '../data/firm_sector_code.csv'
 code_df = pd.read_csv(sector_code)
 ESG = {'지배구조': 'G', '사회': 'S', '환경': 'E', 'ESG등급': 'ESG'}
 
-price_file = '../data/price.csv'
-price_df = pd.read_csv(price_file)
-price_df['Date'] = pd.to_datetime(price_df['Date'], format='%m/%d/%Y')
-price_df = price_df.set_index('Date').sort_index()
+price_file = '../data/Adjusted Price_daily.csv'
+price_df = pd.read_csv(price_file, index_col=0, parse_dates=[0])
 
 FIRM_NAME = '기업명'
 
 def init(df):
-    """ Arrange DataFrame
+    """ Make ESG DataFrame
     Args:
         param1 : dataframe to arrange
     Rets:
@@ -79,7 +73,7 @@ def normalize_score(df):
     return (df - grouped.min()) / (grouped.max() - grouped.min())
 
 
-def summary_normal_esg(df, _from=2011, _to=2017):
+def summary_normal_esg(df, _from=2011, _to=2019):
     """ Calculate normal esg score with given period, sector, and dataframe
     Args:
         param1 : dataframe (DataFrame)
@@ -93,18 +87,18 @@ def summary_normal_esg(df, _from=2011, _to=2017):
     return df
 
 
-def get_firm_benchmark_by_sector(df, year, limit=3):
+def get_firm_benchmark_by_sector(df, year, limit):
     """ Get benchmark firm list from dataframe based upon ESG score sector by sector
     """
     ret_firms = []
     df['yearly_score'] = df[year].sum(axis=1)
     for name, grp in df.groupby('산업명-대분류'):
         ret = grp.sort_values('yearly_score', ascending=False)
-        ret_firms.append(ret.head(limit).index.get_level_values(2))
-    return ret
+        ret_firms.extend(ret.head(limit).index.get_level_values(2).values.tolist())
+    return ret_firms
 
 
-def get_firm_benchmark(df, from_year, to_year, limit=3, percentage=0.75):
+def get_firm_benchmark(df, from_year, to_year, limit=30):
     """ Get benchmark firm list from dataframe based upon ESG score with all
     """
     ret = OrderedDict()
@@ -118,9 +112,8 @@ def get_firm_benchmark(df, from_year, to_year, limit=3, percentage=0.75):
         end_date = periods[idx]
 
         year_firms = get_firm_benchmark_by_sector(df, start_date, limit)
-        print(year_firms)
         ret[(datetime(start_date, 1, 1), datetime(end_date, 1, 1))] = ret.get((datetime(start_date, 1, 1), datetime(end_date, 1, 1)), [])
-        ret[(datetime(start_date, 1, 1), datetime(end_date, 1, 1))].append(year_firms.index.get_level_values(2))
+        ret[(datetime(start_date, 1, 1), datetime(end_date, 1, 1))].extend(year_firms)
     return ret
 
 
@@ -130,7 +123,7 @@ def get_esg_momentum_one_period(df, year):
     return df[df[str(year - 1) + '_score'] <= df[str(year) + '_score']]
 
 
-def get_esg_momentum(df, from_year, to_year):
+def get_esg_momentum(df, from_year, to_year, with_bench=False):
     """ Get firm based upon firm ESG momentum
     """
     ret = OrderedDict()
@@ -140,9 +133,12 @@ def get_esg_momentum(df, from_year, to_year):
         if idx == 0:
             continue
         year_esg_momentum_firm = get_esg_momentum_one_period(df, year).index.get_level_values('기업코드')
-        ret[(datetime(year, 1, 1), datetime(year + 1, 1, 1))] = year_esg_momentum_firm
-    return ret
+        ret[(datetime(year, 1, 1), datetime(year + 1, 1, 1))] = year_esg_momentum_firm.values.tolist()
 
+    if with_bench:
+        bench_dict = get_firm_benchmark(df, from_year+1, to_year+1)
+        return utils.intersect_odict(ret, bench_dict)
+    return ret
 
 ESG_DF = init(df)
 
@@ -151,9 +147,10 @@ if __name__ == "__main__":
 
     period_list = list(zip(range(2011, 2017), range(2012, 2018)))
 
-    # bm_list = get_firm_benchmark(maindf, 2011, 2018)
-    # utils.backtesting(bm_list, './data/Adjusted Price.csv')
+    bm_list = get_firm_benchmark(maindf, 2011, 2019)
+    mm_list = get_esg_momentum(maindf, 2011, 2019, True)
 
-    print(get_firm_benchmark(maindf, 2011, 2017))
-    # TODO intersect with benchmark
-
+    # for k, v in bm_list.items():
+    #     print(k)
+    #     print(v)
+    utils.backtesting(bm_list, price_file, benchmark=None)
