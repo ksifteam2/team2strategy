@@ -8,6 +8,7 @@ from datetime import datetime
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+from financial_filter.financial_filter import f_filter
 
 
 def make_year_esg_column(from_year=2011, to_year=2019, esg=('E', 'S', 'G')):
@@ -16,8 +17,9 @@ def make_year_esg_column(from_year=2011, to_year=2019, esg=('E', 'S', 'G')):
                                               ))
 
 
-def backtesting(back_obj, price_file, save_file=None, benchmark='KOSPI'):
+def backtesting(back_obj, price_file, save_file=None, benchmark='KOSPI', title="None"):
     """
+    TODO : 1. 실제로 사는 것처럼 금액 바탕으로 계산하기. (not 단순산술평균)
     :param back_obj:
     :param price_file: Price File (Might be changed)
     :param save_file:
@@ -48,8 +50,8 @@ def backtesting(back_obj, price_file, save_file=None, benchmark='KOSPI'):
 
         except Exception as e:
             print(e)
-    for x,y in zip(date_axis, ret_val):
-        print(x, y)
+
+    plt.title(title)
     plt.plot(date_axis, ret_val, label="return")
 
     if save_file:

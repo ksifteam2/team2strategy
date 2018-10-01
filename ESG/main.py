@@ -15,10 +15,13 @@
 # - PBR: 주가순자산비율(주가/주당순자산) > 1
 # 5. Add Momentum
 
-from datetime import datetime
-import pandas as pd
+
+import sys
+
+sys.path.append("../")
 import utils
-from collections import OrderedDict
+from financial_filter.financial_filter import *
+from copy import deepcopy
 
 esg_weight = {'S': 150, 'A+': 120, 'A': 100, 'B': 90, 'B+': 95, 'C': 80, 'D': 70, 'B이하': 80}
 year_weight = {2011: 1, 2012: 2, 2013: 3, 2014: 4, 2015: 5, 2016: 6, 2017: 7}
@@ -147,10 +150,13 @@ if __name__ == "__main__":
 
     period_list = list(zip(range(2011, 2017), range(2012, 2018)))
 
-    bm_list = get_firm_benchmark(maindf, 2011, 2019)
+    bm_list = get_firm_benchmark(maindf, 2012, 2020)
     mm_list = get_esg_momentum(maindf, 2011, 2019, True)
-
-    # for k, v in bm_list.items():
+    mm_list2 = deepcopy(mm_list)
+    # for k, v in mm_list.items():
     #     print(k)
-    #     print(v)
-    utils.backtesting(bm_list, price_file, benchmark=None)
+    #     print(len(v))
+    filtered = f_filter(mm_list2)
+    utils.backtesting(bm_list, price_file, benchmark='KOSPI', title="ESG Benchmark")
+    utils.backtesting(mm_list, price_file, benchmark='KOSPI', title="Momentum Applied")
+    utils.backtesting(filtered, price_file, benchmark='KOSPI', title="Momentum Applied + financial filter")

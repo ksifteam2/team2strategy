@@ -12,29 +12,36 @@ pf = Portfolio()
 
 SECTOR = 'krx_sector'
 CODE = 'code'
+FIRM = "Firm"
+FNSECTOR = "산업명-대분류"
 E_P = 'e_p'
 
-MIN_MKTCAP = 10000000
-MIN_TRADING_VAL_RATIO = 0.01
+sector_file = '../data/firm_sector_code.csv'
+sector_df = pd.read_csv(sector_file)
 
-QUERY = "(e_p > e_p_crt) & (mktcap > {}) & (trading_volume_ratio > {})".format(MIN_MKTCAP, MIN_TRADING_VAL_RATIO)
-USECOLS = [CODE, SECTOR, E_P, 'e_p_crt']
+pf = pf.merge(sector_df[[FIRM, FNSECTOR]], left_on="code", right_on="Firm")
+
+
+QUERY = "(e_p < e_p_crt)"
+USECOLS = [CODE, E_P, 'e_p_crt']
 
 HISTORIC_PERIOD = timedelta(90)
 
-def _apply_financial_criteria(period, criteria, firms):
+
+def _apply_financial_criteria(period, criteria, firms, query=QUERY):
     sampled_df = pf.loc[(pf.code.isin(firms)) & (pf.date > period[0] - HISTORIC_PERIOD) & (pf.date < period[1] - HISTORIC_PERIOD)]
-    sampled_df = pd.merge(sampled_df, criteria.to_frame(), left_on=SECTOR, right_index=True, suffixes=('', '_crt'))
-    df_after_query = sampled_df.query(QUERY)
-    return df_after_query[USECOLS]
+    sampled_df = pd.merge(sampled_df, criteria.to_frame(), left_on=FNSECTOR, right_index=True, suffixes=('', '_crt'))
+    expectation_of_factor = sampled_df.groupby(CODE).mean()
+    return expectation_of_factor.query(query).index.values.tolist()
 
 
 def _get_financial_criteria(period, factor=E_P):
     sampled_df = pf.loc[(pf.date > period[0] - HISTORIC_PERIOD) & (pf.date < period[1] - HISTORIC_PERIOD)]
-    return sampled_df.groupby(SECTOR)[factor].quantile(0.5)
+    criteria = sampled_df.groupby(FNSECTOR)[factor].quantile(0.5)
+    return criteria
 
 
-def financial_filter(back_obj, query=None):
+def f_filter(back_obj, query=None):
     """
     Filtering back object with query
     :param back_obj:
@@ -56,5 +63,9 @@ if __name__ == "__main__":
         (datetime(2011, 4, 1), datetime(2011, 7, 1)) : flist2
     })
 
-    for k, v in test_obj.items():
-        print(_apply_financial_criteria(k, _get_financial_criteria(k), v))
+    # for k, v in test_obj.items():
+    #     # print(_get_financial_criteria(k))
+    #     print(_apply_financial_criteria(k, _get_financial_criteria(k), v))
+
+    # print(financial_filter(test_obj))
+    print(f_filter(test_obj))
