@@ -20,7 +20,13 @@ import sys
 
 sys.path.append("../")
 import utils
-from financial_filter.financial_filter import *
+import pandas as pd
+from collections import OrderedDict
+from datetime import datetime
+try:
+    from financial_filter.financial_filter import *
+except:
+    pass
 from copy import deepcopy
 
 esg_weight = {'S': 150, 'A+': 120, 'A': 100, 'B': 90, 'B+': 95, 'C': 80, 'D': 70, 'B이하': 80}
@@ -148,15 +154,13 @@ ESG_DF = init(df)
 if __name__ == "__main__":
     maindf = init(df)
 
-    period_list = list(zip(range(2011, 2017), range(2012, 2018)))
-
-    bm_list = get_firm_benchmark(maindf, 2012, 2020)
-    mm_list = get_esg_momentum(maindf, 2011, 2019, True)
-    mm_list2 = deepcopy(mm_list)
+    bm_list = get_firm_benchmark(maindf, 2015, 2020)
+    mm_list = get_esg_momentum(maindf, 2014, 2019, True)
+    # mm_list2 = deepcopy(mm_list)
     # for k, v in mm_list.items():
     #     print(k)
     #     print(len(v))
-    filtered = f_filter(mm_list2)
-    utils.backtesting(bm_list, price_file, benchmark='KOSPI', title="ESG Benchmark")
-    utils.backtesting(mm_list, price_file, benchmark='KOSPI', title="Momentum Applied")
-    utils.backtesting(filtered, price_file, benchmark='KOSPI', title="Momentum Applied + financial filter")
+    # filtered = f_filter(mm_list2)
+    # utils.backtesting(bm_list, price_file, show_plot=True, benchmark='KOSPI', title="ESG Benchmark")
+    utils.backtesting(mm_list, price_file, show_plot=True, benchmark='KOSPI', title="Momentum Applied")
+    # utils.backtesting(filtered, price_file, show_plot=True, benchmark='KOSPI', title="Momentum Applied + financial filter")
