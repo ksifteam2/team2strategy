@@ -103,7 +103,8 @@ def get_firm_benchmark_by_sector(df, year, limit):
     df['yearly_score'] = df[year].sum(axis=1)
     for name, grp in df.groupby('산업명-대분류'):
         ret = grp.sort_values('yearly_score', ascending=False)
-        ret_firms.extend(ret.head(limit).index.get_level_values(2).values.tolist())
+        firms = ret.head(len(grp) // 2).index.get_level_values(2).values.tolist()
+        ret_firms.extend(firms)
     return ret_firms
 
 
@@ -121,8 +122,8 @@ def get_firm_benchmark(df, from_year, to_year, limit=30):
         end_date = periods[idx]
 
         year_firms = get_firm_benchmark_by_sector(df, start_date, limit)
-        ret[(datetime(start_date, 1, 1), datetime(end_date, 1, 1))] = ret.get((datetime(start_date, 1, 1), datetime(end_date, 1, 1)), [])
-        ret[(datetime(start_date, 1, 1), datetime(end_date, 1, 1))].extend(year_firms)
+        ret[(datetime(start_date, 8, 1), datetime(end_date, 8, 1))] = ret.get((datetime(start_date, 1, 1), datetime(end_date, 1, 1)), [])
+        ret[(datetime(start_date, 8, 1), datetime(end_date, 8, 1))].extend(year_firms)
     return ret
 
 
@@ -142,7 +143,7 @@ def get_esg_momentum(df, from_year, to_year, with_bench=False):
         if idx == 0:
             continue
         year_esg_momentum_firm = get_esg_momentum_one_period(df, year).index.get_level_values('기업코드')
-        ret[(datetime(year, 1, 1), datetime(year + 1, 1, 1))] = year_esg_momentum_firm.values.tolist()
+        ret[(datetime(year, 8, 1), datetime(year + 1, 8, 1))] = year_esg_momentum_firm.values.tolist()
 
     if with_bench:
         bench_dict = get_firm_benchmark(df, from_year+1, to_year+1)

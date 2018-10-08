@@ -58,23 +58,26 @@ def validation(order_items, date):
     price = PRICE_DF.iloc[PRICE_DF.index.get_loc(date, method='pad')]
     return price.loc[order_items].dropna().index.values.tolist()
 
-def order(pocket, order_items, date):
+def order(pocket, order_items, date, verbose=False):
     order_items = validation(order_items, date)
     if type(order_items) is not Counter:
-        print(order_items)
-        print(pocket.balance(date))
         order_items = equal_price_counter(order_items, date, pocket.balance(date))
-    print(order_items)
+
     pocket.cash += get_value_of_stocks(pocket.stocks, date)
-    print("After Sell Cash : {}".format(pocket.cash))
+
+    if verbose:
+        print(order_items)
+        print("After Sell Cash : {}".format(pocket.cash))
+
     pocket.stocks = order_items
     pocket.cash -= get_value_of_stocks(order_items, date)
-    print("After Buy Cash : {}".format(pocket.cash))
 
-    print("\n"
-          "Remaining stocks :{}\n"
-          "Remaining Cash : {}\n"
-          "Total Balance :{}".format(pocket.stocks, pocket.cash, pocket.balance(date)))
+    if verbose:
+        print("After Buy Cash : {}".format(pocket.cash))
+        print("\n"
+              "Remaining stocks :{}\n"
+              "Remaining Cash : {}\n"
+              "Total Balance :{}".format(pocket.stocks, pocket.cash, pocket.balance(date)))
 
 
 # def order_to_target(pocket, order_items, date):
@@ -97,7 +100,7 @@ def make_year_esg_column(from_year=2011, to_year=2019, esg=('E', 'S', 'G')):
                                               ))
 
 
-def backtesting(back_obj, price_file, show_plot=False, save_file=None, benchmark='KOSPI', title="None", balance=INIT_BALANCE):
+def backtesting(back_obj, show_plot=False, save_file=None, benchmark='KOSPI', title="None", verbose=False):
     """
     TODO : 1. 실제로 사는 것처럼 금액 바탕으로 계산하기. (not 단순산술평균), 2. Loss cut
     :param back_obj:
@@ -114,12 +117,11 @@ def backtesting(back_obj, price_file, show_plot=False, save_file=None, benchmark
 
     pkt = Pocket(INIT_BALANCE)
     for period, firms in back_obj.items():
-        print(period)
         firms = [x for x in firms if x in price_df[period[0]:period[1]].columns]
 
         sub_periods = PRICE_DF[period[0]:period[1]].index.values
 
-        order(pkt, firms, period[0])            # This is ordering by equal trading has todo fix after!
+        order(pkt, firms, period[0], verbose)            # This is ordering by equal trading has todo fix after!
 
         val_list = [pkt.balance(t) for t in sub_periods]
 
@@ -128,6 +130,8 @@ def backtesting(back_obj, price_file, show_plot=False, save_file=None, benchmark
 
     price_val = list(map(lambda x: (x / INIT_BALANCE) - 1, price_val))
 
+    if verbose:
+        print(price_val)
     if show_plot:
         plt.title(title)
         plt.plot(date_axis, price_val, label="return")
@@ -136,7 +140,7 @@ def backtesting(back_obj, price_file, show_plot=False, save_file=None, benchmark
             plt.savefig(save_file)
 
         if benchmark == 'KOSPI':
-            bench_df = pd.read_csv("./data/kospi_kosdaq_Equal.csv", index_col=0, parse_dates=[0])
+            bench_df = pd.read_csv("../data/kospi_kosdaq_Equal.csv", index_col=0, parse_dates=[0])
             bench_df = bench_df[date_axis[0] : date_axis[-1]]
             bench_val = bench_df / bench_df.iloc[0] - 1
             plt.plot(bench_val, label="benchmark")
