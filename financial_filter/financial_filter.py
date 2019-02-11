@@ -21,36 +21,38 @@ sector_df = pd.read_csv(sector_file)
 
 pf = pf.merge(sector_df[[FIRM, FNSECTOR]], left_on="code", right_on="Firm")
 
-
-QUERY = "(e_p < e_p_crt)"
-USECOLS = [CODE, E_P, 'e_p_crt']
-
 HISTORIC_PERIOD = timedelta(90)
 
+FACTORS = columns.COMPANY_FACTORS
 
-def _apply_financial_criteria(period, criteria, firms, query=QUERY):
+def _apply_financial_criteria(period, criteria, firms, query):
     sampled_df = pf.loc[(pf.code.isin(firms)) & (pf.date > period[0] - HISTORIC_PERIOD) & (pf.date < period[1] - HISTORIC_PERIOD)]
-    sampled_df = pd.merge(sampled_df, criteria.to_frame(), left_on=FNSECTOR, right_index=True, suffixes=('', '_crt'))
+    sampled_df = pd.merge(sampled_df, criteria, left_on=FNSECTOR, right_index=True, suffixes=('', '_crt'))
     expectation_of_factor = sampled_df.groupby(CODE).mean()
     return expectation_of_factor.query(query).index.values.tolist()
 
 
-def _get_financial_criteria(period, factor=E_P):
+def _get_financial_criteria(period, factor=E_P, crt=[0.0, 0.5]):
+    pf.date = pd.to_datetime(pf.date)
     sampled_df = pf.loc[(pf.date > period[0] - HISTORIC_PERIOD) & (pf.date < period[1] - HISTORIC_PERIOD)]
-    criteria = sampled_df.groupby(FNSECTOR)[factor].quantile(0.5)
+    criteria = sampled_df.groupby(FNSECTOR)[factor].quantile(crt)
+    criteria = criteria.unstack()
+    # print(criteria)
+    criteria = criteria.rename(columns={crt[0]: 'left_crt', crt[1]: 'right_crt'})
     return criteria
 
 
-def f_filter(back_obj, query=None):
+def f_filter(back_obj, factor=E_P, query=None, crt=[0.0, 0.5]):
     """
     Filtering back object with query
     :param back_obj:
     :param query:
     :return:
     """
+
     for period, firms in back_obj.items():
-        criteria = _get_financial_criteria(period)
-        back_obj[period] = _apply_financial_criteria(period, criteria, firms)
+        criteria = _get_financial_criteria(period, factor, crt)
+        back_obj[period] = _apply_financial_criteria(period, criteria, firms, query)
 
     return back_obj
 
@@ -63,9 +65,6 @@ if __name__ == "__main__":
         (datetime(2011, 4, 1), datetime(2011, 7, 1)) : flist2
     })
 
-    # for k, v in test_obj.items():
-    #     # print(_get_financial_criteria(k))
-    #     print(_apply_financial_criteria(k, _get_financial_criteria(k), v))
 
     # print(financial_filter(test_obj))
-    print(f_filter(test_obj))
+    # print(f_filter(test_obj, query="e_p > left_crt & e_p < right_crt", crt=[0.0, 0.3]))
